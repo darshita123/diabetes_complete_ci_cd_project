@@ -1,0 +1,44 @@
+name: Deploy to Azure kube Instance
+
+on:
+  workflow_run:
+    workflows: ["Training and Docker Build Pipeline"]  # Name of the first workflow (train.yml)
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Machine for GitHub Action workflow; all tasks run on this machine
+    steps:
+      - name: Checkout code  # Fetching the repository (fetch all the codes)
+        uses: actions/checkout@v2
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+      
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name <your-acr-name>  # Replace with your ACR name
+
+      - name: Set subscription for AKS
+        run: az account set --subscription db962ab2-7e93-4bc4-88a4-49e99f7ee55d
+
+      - name: Credential setup
+        run: az aks get-credentials --resource-group iris_actions_demo --name Actions_demo --overwrite-existing
+
+      - name: Run the deployment file
+        run: kubectl apply -f deployment.yaml
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install the required dependencies for unit test cases
+        run: pip install pytest httpx
+
+      - name: Run the unit test file
+        run: pytest python_test.py  
